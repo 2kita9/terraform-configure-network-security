@@ -1,0 +1,139 @@
+provider "aws" {
+  region = var.aws_region
+}
+
+# SSH Security Group
+resource "aws_security_group" "ssh_sg" {
+  name        = "cmtr-qxgoe9r5-ssh-sg"
+  description = "SSH security group"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Project = var.tag_name
+  }
+}
+
+resource "aws_security_group_rule" "ssh_ingress" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.ssh_sg.id
+}
+
+resource "aws_security_group_rule" "ssh_icmp" {
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.ssh_sg.id
+}
+
+resource "aws_security_group_rule" "ssh_egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.ssh_sg.id
+}
+
+# Public HTTP Security Group
+resource "aws_security_group" "public_http_sg" {
+  name        = "cmtr-qxgoe9r5-public-http-sg"
+  description = "Public HTTP security group"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Project = var.tag_name
+  }
+}
+
+resource "aws_security_group_rule" "public_http_ingress" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.public_http_sg.id
+}
+
+resource "aws_security_group_rule" "public_http_icmp" {
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.public_http_sg.id
+}
+
+resource "aws_security_group_rule" "public_http_egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.public_http_sg.id
+}
+
+# Private HTTP Security Group
+resource "aws_security_group" "private_http_sg" {
+  name        = "cmtr-qxgoe9r5-private-http-sg"
+  description = "Private HTTP security group"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Project = var.tag_name
+  }
+}
+
+resource "aws_security_group_rule" "private_http_ingress" {
+  type                     = "ingress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.public_http_sg.id
+  security_group_id        = aws_security_group.private_http_sg.id
+}
+
+resource "aws_security_group_rule" "private_http_icmp" {
+  type                     = "ingress"
+  from_port                = -1
+  to_port                  = -1
+  protocol                 = "icmp"
+  source_security_group_id = aws_security_group.public_http_sg.id
+  security_group_id        = aws_security_group.private_http_sg.id
+}
+
+resource "aws_security_group_rule" "private_http_egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.private_http_sg.id
+}
+
+# Attach SGs to Public Instance
+resource "aws_network_interface_sg_attachment" "public_ssh_attach" {
+  security_group_id    = aws_security_group.ssh_sg.id
+  network_interface_id = var.public_network_interface_id
+}
+
+resource "aws_network_interface_sg_attachment" "public_http_attach" {
+  security_group_id    = aws_security_group.public_http_sg.id
+  network_interface_id = var.public_network_interface_id
+}
+
+# Attach SGs to Private Instance
+resource "aws_network_interface_sg_attachment" "private_ssh_attach" {
+  security_group_id    = aws_security_group.ssh_sg.id
+  network_interface_id = var.private_network_interface_id
+}
+
+resource "aws_network_interface_sg_attachment" "private_http_attach" {
+  security_group_id    = aws_security_group.private_http_sg.id
+  network_interface_id = var.private_network_interface_id
+}
